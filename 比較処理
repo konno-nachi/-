@@ -1,0 +1,44 @@
+function updateSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetA = ss.getSheetByName('Aシート');
+  const sheetB = ss.getSheetByName('Bシート');
+  
+  const dataA = sheetA.getDataRange().getValues();
+  const dataB = sheetB.getDataRange().getValues();
+  
+  const headerA = dataA[0];
+  const idIndexA = headerA.indexOf('ID');
+  const noteIndexA = headerA.indexOf('備考');
+  
+  const headerB = dataB[0];
+  const idIndexB = headerB.indexOf('ID');
+  const noteIndexB = headerB.indexOf('備考');
+  
+  const timestamp = new Date().toLocaleString();
+  
+  for (let i = 1; i < dataB.length; i++) {
+    if (dataB[i][noteIndexB]) {
+      const idB = dataB[i][idIndexB];
+      const noteB = dataB[i][noteIndexB];
+      let found = false;
+      
+      for (let j = 1; j < dataA.length; j++) {
+        if (dataA[j][idIndexA] === idB) {
+          const currentNote = dataA[j][noteIndexA] || '';
+          dataA[j][noteIndexA] = `${currentNote}\n${timestamp}\n${noteB}`;
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        const newRow = new Array(headerA.length).fill('');
+        newRow[idIndexA] = idB;
+        newRow[noteIndexA] = `${timestamp}\n${noteB}`;
+        dataA.push(newRow);
+      }
+    }
+  }
+  
+  sheetA.getRange(1, 1, dataA.length, dataA[0].length).setValues(dataA);
+}
