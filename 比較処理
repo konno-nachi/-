@@ -14,15 +14,18 @@ function updateSheet() {
   var idIndexB = headerB.indexOf('ID');
   var dateIndexB = headerB.indexOf('確認日');
 
+  var currentDate = new Date();
+  var currentYearMonth = Utilities.formatDate(currentDate, 'Asia/Tokyo', 'yyyy/MM');
+
   for (var i = 1; i < dataA.length; i++) {
     var idA = dataA[i][idIndexA];
-    var dateA = dataA[i][dateIndexA];
+    var dateA = normalizeDate(dataA[i][dateIndexA]);
     var cellA = sheetA.getRange(i + 1, dateIndexA + 1);
     var noteA = cellA.getNote();
 
     for (var j = 1; j < dataB.length; j++) {
       var idB = dataB[j][idIndexB];
-      var dateB = dataB[j][dateIndexB];
+      var dateB = normalizeDate(dataB[j][dateIndexB]);
 
       if (idA === idB) {
         if (dateA === dateB) {
@@ -30,9 +33,7 @@ function updateSheet() {
           cellA.setNote(sheetB.getRange(j + 1, dateIndexB + 1).getNote());
         } else {
           // 日付が異なる場合、メモを更新
-          var newDate = new Date(dateB);
-          var yearMonth = Utilities.formatDate(newDate, 'Asia/Tokyo', 'yyyy/MM');
-          var updatedNote = updateNote(noteA, yearMonth, dateB);
+          var updatedNote = updateNote(noteA, currentYearMonth, dataB[j][dateIndexB]);
           cellA.setNote(updatedNote);
         }
         break;
@@ -41,9 +42,15 @@ function updateSheet() {
   }
 }
 
-function updateNote(currentNote, newYearMonth, newDate) {
+function normalizeDate(dateString) {
+  var parts = dateString.split('/');
+  // yyyy/MM/dd 形式の文字列を返す
+  return parts[0] + '/' + parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0');
+}
+
+function updateNote(currentNote, currentYearMonth, newDate) {
   var noteLines = currentNote.split('\n');
-  var updatedLines = [`【${newYearMonth}】 ${newDate}`];
+  var updatedLines = [`【${currentYearMonth}】 ${newDate}`];
   
   for (var i = 0; i < noteLines.length; i++) {
     if (i < 2) { // 最新の3つのエントリーのみを保持
