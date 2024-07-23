@@ -19,6 +19,9 @@ function updateSheets() {
   var updatedDataB = [];
   updatedDataB.push(headerB); // ヘッダー行を保持
   
+  var addedRows = 0;
+  var updatedRows = 0;
+  
   for (var i = 1; i < dataA.length; i++) {
     var idA = dataA[i][idColumnA];
     var remarkA = dataA[i][remarkColumnA];
@@ -33,6 +36,7 @@ function updateSheets() {
           updatedRow[remarkColumnB] = dataB[j][remarkColumnB] + "\n" + timestamp + " " + remarkA;
           updatedDataB.push(updatedRow);
           found = true;
+          updatedRows++;
           break;
         }
       }
@@ -42,10 +46,15 @@ function updateSheets() {
         var newRow = dataA[i].slice();
         newRow[remarkColumnB] = timestamp + " " + remarkA;
         updatedDataB.push(newRow);
+        addedRows++;
       }
     }
   }
   
   // Bシートを更新
   sheetB.getRange(1, 1, updatedDataB.length, updatedDataB[0].length).setValues(updatedDataB);
+  
+  // ログ出力
+  Logger.log("追加された行数: " + addedRows);
+  Logger.log("更新された行数: " + updatedRows);
 }
