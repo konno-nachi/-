@@ -1,7 +1,7 @@
 function updateSheet() {
-  var ss = SpreadshreadApp.getActiveSpreadsheet();
-  var sheetA = ss.getSheetByName('Aシート');
-  var sheetB = ss.getSheetByName('Bシート');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetA = ss.getSheetByName('Aシート(今月)');
+  var sheetB = ss.getSheetByName('Bシート(先月)');
 
   var dataA = sheetA.getDataRange().getValues();
   var dataB = sheetB.getDataRange().getValues();
@@ -17,6 +17,8 @@ function updateSheet() {
   for (var i = 1; i < dataA.length; i++) {
     var idA = dataA[i][idIndexA];
     var dateA = dataA[i][dateIndexA];
+    var cellA = sheetA.getRange(i + 1, dateIndexA + 1);
+    var noteA = cellA.getNote();
 
     for (var j = 1; j < dataB.length; j++) {
       var idB = dataB[j][idIndexB];
@@ -24,18 +26,32 @@ function updateSheet() {
 
       if (idA === idB) {
         if (dateA === dateB) {
-          // 日付が同じ場合、Bシートの値をそのまま使用
-          sheetA.getRange(i + 1, dateIndexA + 1).setValue(dateB);
+          // 日付が同じ場合、Bシートのメモをそのまま使用
+          cellA.setNote(sheetB.getRange(j + 1, dateIndexB + 1).getNote());
         } else {
           // 日付が異なる場合、メモを更新
           var newDate = new Date(dateB);
-          var oneMonthAgo = new Date(newDate.setMonth(newDate.getMonth() - 1));
-          var formattedDate = Utilities.formatDate(oneMonthAgo, 'Asia/Tokyo', 'yyyy/MM/dd');
-          var updatedValue = dateB + '\n' + formattedDate + ' ' + dateB;
-          sheetA.getRange(i + 1, dateIndexA + 1).setValue(updatedValue);
+          var yearMonth = Utilities.formatDate(newDate, 'Asia/Tokyo', 'yyyy/MM');
+          var updatedNote = updateNote(noteA, yearMonth, dateB);
+          cellA.setNote(updatedNote);
         }
         break;
       }
     }
   }
+}
+
+function updateNote(currentNote, newYearMonth, newDate) {
+  var noteLines = currentNote.split('\n');
+  var updatedLines = [`【${newYearMonth}】 ${newDate}`];
+  
+  for (var i = 0; i < noteLines.length; i++) {
+    if (i < 2) { // 最新の3つのエントリーのみを保持
+      updatedLines.push(noteLines[i]);
+    } else {
+      break;
+    }
+  }
+  
+  return updatedLines.join('\n');
 }
