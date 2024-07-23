@@ -1,7 +1,7 @@
 function updateSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetA = ss.getSheetByName('Aシート(今月)');
-  var sheetB = ss.getSheetByName('Bシート(先月)');
+  var sheetA = ss.getSheetByName('Aシート');
+  var sheetB = ss.getSheetByName('Bシート');
 
   var dataA = sheetA.getDataRange().getValues();
   var dataB = sheetB.getDataRange().getValues();
@@ -28,11 +28,11 @@ function updateSheet() {
       var dateB = normalizeDate(dataB[j][dateIndexB]);
 
       if (idA === idB) {
-        if (dateA === dateB) {
+        if (dateA && dateB && dateA === dateB) {
           // 日付が同じ場合、Bシートのメモをそのまま使用
           cellA.setNote(sheetB.getRange(j + 1, dateIndexB + 1).getNote());
-        } else {
-          // 日付が異なる場合、メモを更新
+        } else if (dateB) {
+          // 日付が異なる場合、またはAの日付が無効な場合、メモを更新
           var updatedNote = updateNote(noteA, currentYearMonth, dataB[j][dateIndexB]);
           cellA.setNote(updatedNote);
         }
@@ -42,22 +42,40 @@ function updateSheet() {
   }
 }
 
-function normalizeDate(dateString) {
+function normalizeDate(dateValue) {
+  if (dateValue === undefined || dateValue === null || dateValue === '') return null;
+
+  var dateString = '';
+  if (dateValue instanceof Date) {
+    // Dateオブジェクトの場合、フォーマットを適用
+    dateString = Utilities.formatDate(dateValue, 'Asia/Tokyo', 'yyyy/MM/dd');
+  } else if (typeof dateValue === 'string') {
+    // 文字列の場合、トリムしてから使用
+    dateString = dateValue.trim();
+  } else {
+    // その他の型の場合、null を返す
+    return null;
+  }
+
+  // 空文字列になった場合はnullを返す
+  if (dateString === '') return null;
+
   var parts = dateString.split('/');
+  if (parts.length !== 3) return null;
+
+  // 各部分が数値に変換できることを確認
+  if (isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null;
+
   // yyyy/MM/dd 形式の文字列を返す
   return parts[0] + '/' + parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0');
 }
 
 function updateNote(currentNote, currentYearMonth, newDate) {
-  var noteLines = currentNote.split('\n');
+  var noteLines = currentNote ? currentNote.split('\n') : [];
   var updatedLines = [`【${currentYearMonth}】 ${newDate}`];
   
-  for (var i = 0; i < noteLines.length; i++) {
-    if (i < 2) { // 最新の3つのエントリーのみを保持
-      updatedLines.push(noteLines[i]);
-    } else {
-      break;
-    }
+  for (var i = 0; i < noteLines.length && updatedLines.length < 3; i++) {
+    updatedLines.push(noteLines[i]);
   }
   
   return updatedLines.join('\n');
