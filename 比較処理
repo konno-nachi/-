@@ -16,17 +16,22 @@ function updateSheets() {
   
   var timestamp = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM");
   
-  for (var i = 1; i < dataB.length; i++) {
-    var idB = dataB[i][idColumnB];
-    var remarkB = dataB[i][remarkColumnB];
+  var updatedDataB = [];
+  updatedDataB.push(headerB); // ヘッダー行を保持
+  
+  for (var i = 1; i < dataA.length; i++) {
+    var idA = dataA[i][idColumnA];
+    var remarkA = dataA[i][remarkColumnA];
     
-    if (idB && remarkB) {
+    if (idA && remarkA) {
       var found = false;
       
-      for (var j = 1; j < dataA.length; j++) {
-        if (dataA[j][idColumnA] === idB) {
-          // 既存のIDの場合、備考を更新
-          dataA[j][remarkColumnA] += "\n" + timestamp + " " + remarkB;
+      for (var j = 1; j < dataB.length; j++) {
+        if (dataB[j][idColumnB] === idA) {
+          // IDが一致した場合、Bシートの行を更新
+          var updatedRow = dataA[i].slice(); // Aシートの行をコピー
+          updatedRow[remarkColumnB] = dataB[j][remarkColumnB] + "\n" + timestamp + " " + remarkA;
+          updatedDataB.push(updatedRow);
           found = true;
           break;
         }
@@ -34,19 +39,13 @@ function updateSheets() {
       
       if (!found) {
         // 新規IDの場合、新しい行を追加
-        var newRow = new Array(headerA.length);
-        for (var k = 0; k < headerB.length; k++) {
-          var columnIndex = headerA.indexOf(headerB[k]);
-          if (columnIndex !== -1) {
-            newRow[columnIndex] = dataB[i][k];
-          }
-        }
-        newRow[remarkColumnA] = timestamp + " " + remarkB;
-        dataA.push(newRow);
+        var newRow = dataA[i].slice();
+        newRow[remarkColumnB] = timestamp + " " + remarkA;
+        updatedDataB.push(newRow);
       }
     }
   }
   
-  // シートAを更新
-  sheetA.getRange(1, 1, dataA.length, dataA[0].length).setValues(dataA);
+  // Bシートを更新
+  sheetB.getRange(1, 1, updatedDataB.length, updatedDataB[0].length).setValues(updatedDataB);
 }
