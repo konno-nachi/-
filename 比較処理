@@ -1,4 +1,4 @@
-function updateSheets() {
+function transferAndUpdateData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetA = ss.getSheetByName("Aシート");
   var sheetB = ss.getSheetByName("Bシート");
@@ -7,78 +7,55 @@ function updateSheets() {
   var dataB = sheetB.getDataRange().getValues();
   
   var headerA = dataA[0];
-  var idColumnA = headerA.indexOf("ID");
-  var remarkColumnA = headerA.indexOf("備考");
-  
   var headerB = dataB[0];
-  var idColumnB = headerB.indexOf("ID");
-  var remarkColumnB = headerB.indexOf("備考");
   
-  var timestamp = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM");
+  var idIndexA = headerA.indexOf("ID");
+  var remarkIndexA = headerA.indexOf("備考");
+  var idIndexB = headerB.indexOf("ID");
+  var remarkIndexB = headerB.indexOf("備考");
   
   var updatedRows = 0;
-  var newRows = [];
+  var addedRows = 0;
   
-  // Bシートの各行を処理
-  for (var i = 1; i < dataB.length; i++) {
-    var idB = dataB[i][idColumnB];
-    var found = false;
+  for (var i = 1; i < dataA.length; i++) {
+    var rowA = dataA[i];
+    var idA = rowA[idIndexA];
+    var remarkA = rowA[remarkIndexA];
     
-    // Aシートで対応するIDを検索
-    for (var j = 1; j < dataA.length; j++) {
-      if (dataA[j][idColumnA] === idB) {
-        // IDが一致した場合の処理
-        // 備考列: タイムスタンプとAシートの備考を追加
-        dataB[i][remarkColumnB] += "\n" + timestamp + " " + dataA[j][remarkColumnA];
-        
-        // その他の列: Aシートの値で上書き
-        for (var k = 0; k < headerB.length; k++) {
-          if (k !== remarkColumnB) {
-            dataB[i][k] = dataA[j][k];
+    // 備考欄に値がある場合のみ処理
+    if (remarkA) {
+      var foundIndex = -1;
+      for (var j = 1; j < dataB.length; j++) {
+        if (dataB[j][idIndexB] === idA && dataB[j][remarkIndexB]) {
+          foundIndex = j;
+          break;
+        }
+      }
+      
+      if (foundIndex !== -1) {
+        // 既存の行を更新
+        for (var k = 0; k < headerA.length; k++) {
+          if (k !== remarkIndexB) {
+            sheetB.getRange(foundIndex + 1, k + 1).setValue(rowA[k]);
           }
         }
-        
-        found = true;
+        var existingRemark = dataB[foundIndex][remarkIndexB];
+        var newRemark = Utilities.formatDate(new Date(), "GMT+9", "yyyy/MM") + "\n" + remarkA;
+        sheetB.getRange(foundIndex + 1, remarkIndexB + 1).setValue(existingRemark + "\n" + newRemark);
         updatedRows++;
-        break;
+      } else {
+        // 新しい行を追加
+        var newRow = new Array(headerB.length);
+        for (var k = 0; k < headerA.length; k++) {
+          newRow[k] = rowA[k];
+        }
+        newRow[remarkIndexB] = Utilities.formatDate(new Date(), "GMT+9", "yyyy/MM") + "\n" + remarkA;
+        sheetB.appendRow(newRow);
+        addedRows++;
       }
     }
-    
-    if (!found) {
-      // Bシートに存在するが、Aシートに存在しないIDは変更しない
-      continue;
-    }
   }
   
-  // Aシートの新規IDを処理
-  for (var j = 1; j < dataA.length; j++) {
-    var idA = dataA[j][idColumnA];
-    var found = false;
-    
-    for (var i = 1; i < dataB.length; i++) {
-      if (dataB[i][idColumnB] === idA) {
-        found = true;
-        break;
-      }
-    }
-    
-    if (!found) {
-      // 新規IDの場合、新しい行を追加
-      var newRow = dataA[j].slice();
-      newRow[remarkColumnB] = timestamp + " " + dataA[j][remarkColumnA];
-      newRows.push(newRow);
-    }
-  }
-  
-  // 新規行を最終行に追加
-  if (newRows.length > 0) {
-    dataB = dataB.concat(newRows);
-  }
-  
-  // Bシートを更新
-  sheetB.getRange(1, 1, dataB.length, dataB[0].length).setValues(dataB);
-  
-  // ログ出力
   Logger.log("更新された行数: " + updatedRows);
-  Logger.log("追加された行数: " + newRows.length);
+  Logger.log("追加された行数: " + addedRows);
 }
