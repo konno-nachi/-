@@ -1,44 +1,52 @@
 function updateSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetA = ss.getSheetByName('Aシート');
-  const sheetB = ss.getSheetByName('Bシート');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetA = ss.getSheetByName("Aシート");
+  var sheetB = ss.getSheetByName("Bシート");
   
-  const dataA = sheetA.getDataRange().getValues();
-  const dataB = sheetB.getDataRange().getValues();
+  var dataA = sheetA.getDataRange().getValues();
+  var dataB = sheetB.getDataRange().getValues();
   
-  const headerA = dataA[0];
-  const idIndexA = headerA.indexOf('ID');
-  const noteIndexA = headerA.indexOf('備考');
+  var headerA = dataA[0];
+  var idColumnA = headerA.indexOf("ID");
+  var remarkColumnA = headerA.indexOf("備考");
   
-  const headerB = dataB[0];
-  const idIndexB = headerB.indexOf('ID');
-  const noteIndexB = headerB.indexOf('備考');
+  var headerB = dataB[0];
+  var idColumnB = headerB.indexOf("ID");
+  var remarkColumnB = headerB.indexOf("備考");
   
-  const timestamp = new Date().toLocaleString();
+  var timestamp = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM");
   
-  for (let i = 1; i < dataB.length; i++) {
-    if (dataB[i][noteIndexB]) {
-      const idB = dataB[i][idIndexB];
-      const noteB = dataB[i][noteIndexB];
-      let found = false;
+  for (var i = 1; i < dataB.length; i++) {
+    var idB = dataB[i][idColumnB];
+    var remarkB = dataB[i][remarkColumnB];
+    
+    if (idB && remarkB) {
+      var found = false;
       
-      for (let j = 1; j < dataA.length; j++) {
-        if (dataA[j][idIndexA] === idB) {
-          const currentNote = dataA[j][noteIndexA] || '';
-          dataA[j][noteIndexA] = `${currentNote}\n${timestamp}\n${noteB}`;
+      for (var j = 1; j < dataA.length; j++) {
+        if (dataA[j][idColumnA] === idB) {
+          // 既存のIDの場合、備考を更新
+          dataA[j][remarkColumnA] += "\n" + timestamp + " " + remarkB;
           found = true;
           break;
         }
       }
       
       if (!found) {
-        const newRow = new Array(headerA.length).fill('');
-        newRow[idIndexA] = idB;
-        newRow[noteIndexA] = `${timestamp}\n${noteB}`;
+        // 新規IDの場合、新しい行を追加
+        var newRow = new Array(headerA.length);
+        for (var k = 0; k < headerB.length; k++) {
+          var columnIndex = headerA.indexOf(headerB[k]);
+          if (columnIndex !== -1) {
+            newRow[columnIndex] = dataB[i][k];
+          }
+        }
+        newRow[remarkColumnA] = timestamp + " " + remarkB;
         dataA.push(newRow);
       }
     }
   }
   
+  // シートAを更新
   sheetA.getRange(1, 1, dataA.length, dataA[0].length).setValues(dataA);
 }
