@@ -1,18 +1,18 @@
 function updateSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetA = ss.getSheetByName('Aシート');
-  var sheetB = ss.getSheetByName('Bシート');
+  var sheetA = ss.getSheetByName('Aシート(今月)');
+  var sheetB = ss.getSheetByName('Bシート(先月)');
 
   var dataA = sheetA.getDataRange().getValues();
   var dataB = sheetB.getDataRange().getValues();
 
   var headerA = dataA[0];
   var idIndexA = headerA.indexOf('ID');
-  var dateIndexA = headerA.indexOf('確認日');
+  var dateIndexA = headerA.indexOf('確認');
 
   var headerB = dataB[0];
   var idIndexB = headerB.indexOf('ID');
-  var dateIndexB = headerB.indexOf('確認日');
+  var dateIndexB = headerB.indexOf('確認');
 
   var currentDate = new Date();
   var currentYearMonth = Utilities.formatDate(currentDate, 'Asia/Tokyo', 'yyyy/MM');
@@ -21,19 +21,26 @@ function updateSheet() {
     var idA = dataA[i][idIndexA];
     var dateA = normalizeDate(dataA[i][dateIndexA]);
     var cellA = sheetA.getRange(i + 1, dateIndexA + 1);
-    var noteA = cellA.getNote();
 
     for (var j = 1; j < dataB.length; j++) {
       var idB = dataB[j][idIndexB];
       var dateB = normalizeDate(dataB[j][dateIndexB]);
 
       if (idA === idB) {
+        var noteB = sheetB.getRange(j + 1, dateIndexB + 1).getNote();
+        
         if (dateA && dateB && dateA === dateB) {
-          // 日付が同じ場合、Bシートのメモをそのまま使用
-          cellA.setNote(sheetB.getRange(j + 1, dateIndexB + 1).getNote());
+          // 日付が一致する場合、Bシートのメモをそのままコピー
+          cellA.setNote(noteB);
         } else if (dateB) {
-          // 日付が異なる場合、またはAの日付が無効な場合、メモを更新
-          var updatedNote = updateNote(noteA, currentYearMonth, dataB[j][dateIndexB]);
+          // 日付が異なる場合、新しいエントリーを追加
+          var oneMonthAgo = new Date(dateB);
+          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+          var oneMonthAgoStr = Utilities.formatDate(oneMonthAgo, 'Asia/Tokyo', 'yyyy/MM/dd');
+          var newEntry = `【${currentYearMonth}】 ${dataB[j][dateIndexB]}\n${oneMonthAgoStr} ${dataB[j][dateIndexB]}`;
+          
+          var currentNoteA = cellA.getNote();
+          var updatedNote = currentNoteA ? (newEntry + '\n' + currentNoteA) : newEntry;
           cellA.setNote(updatedNote);
         }
         break;
@@ -47,36 +54,19 @@ function normalizeDate(dateValue) {
 
   var dateString = '';
   if (dateValue instanceof Date) {
-    // Dateオブジェクトの場合、フォーマットを適用
     dateString = Utilities.formatDate(dateValue, 'Asia/Tokyo', 'yyyy/MM/dd');
   } else if (typeof dateValue === 'string') {
-    // 文字列の場合、トリムしてから使用
     dateString = dateValue.trim();
   } else {
-    // その他の型の場合、null を返す
     return null;
   }
 
-  // 空文字列になった場合はnullを返す
   if (dateString === '') return null;
 
   var parts = dateString.split('/');
   if (parts.length !== 3) return null;
 
-  // 各部分が数値に変換できることを確認
   if (isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null;
 
-  // yyyy/MM/dd 形式の文字列を返す
   return parts[0] + '/' + parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0');
-}
-
-function updateNote(currentNote, currentYearMonth, newDate) {
-  var noteLines = currentNote ? currentNote.split('\n') : [];
-  var updatedLines = [`【${currentYearMonth}】 ${newDate}`];
-  
-  for (var i = 0; i < noteLines.length && updatedLines.length < 3; i++) {
-    updatedLines.push(noteLines[i]);
-  }
-  
-  return updatedLines.join('\n');
 }
