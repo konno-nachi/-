@@ -1,69 +1,47 @@
-function updateSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetA = ss.getSheetByName('Aシート(今月)');
-  var sheetB = ss.getSheetByName('Bシート(先月)');
+function colorCodeSheet() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  const numRows = values.length;
+  const numCols = values[0].length;
 
-  var dataA = sheetA.getDataRange().getValues();
-  var dataB = sheetB.getDataRange().getValues();
+  // 列のインデックスを取得
+  const colIndices = {
+    tGray: values[0].indexOf('T灰色'),
+    sOrange: values[0].indexOf('Sオレンジ'),
+    hConfirm: values[0].indexOf('H確認'),
+    colorG: values[0].indexOf('色塗りG'),
+    colorI: values[0].indexOf('色塗りI')
+  };
 
-  var headerA = dataA[0];
-  var idIndexA = headerA.indexOf('ID');
-  var dateIndexA = headerA.indexOf('確認');
+  // 色の定義
+  const colors = {
+    gray: '#D3D3D3',
+    orange: '#FFA500',
+    yellow: '#FFFF00'
+  };
 
-  var headerB = dataB[0];
-  var idIndexB = headerB.indexOf('ID');
-  var dateIndexB = headerB.indexOf('確認');
+  // 背景色の2次元配列を作成
+  let backgroundColors = values.map(row => new Array(numCols).fill(null));
 
-  for (var i = 1; i < dataA.length; i++) {
-    var idA = dataA[i][idIndexA];
-    var dateA = normalizeDate(dataA[i][dateIndexA]);
-    var cellA = sheetA.getRange(i + 1, dateIndexA + 1);
-
-    for (var j = 1; j < dataB.length; j++) {
-      var idB = dataB[j][idIndexB];
-      var dateB = normalizeDate(dataB[j][dateIndexB]);
-
-      if (idA === idB) {
-        var noteB = sheetB.getRange(j + 1, dateIndexB + 1).getNote();
-        
-        if (dateA && dateB && dateA === dateB) {
-          // 日付が一致する場合、Bシートのメモをそのままコピー
-          cellA.setNote(noteB);
-        } else if (dateB) {
-          // 日付が異なる場合、新しいエントリーを追加
-          var dateBObj = new Date(dateB);
-          var oneMonthAgo = new Date(dateBObj.getFullYear(), dateBObj.getMonth() - 1, 1);
-          var oneMonthAgoStr = Utilities.formatDate(oneMonthAgo, 'Asia/Tokyo', 'yyyy/MM');
-          var newEntry = `【${oneMonthAgoStr}】 ${dateB}`;
-          
-          var currentNoteA = cellA.getNote();
-          var updatedNote = currentNoteA ? (newEntry + '\n' + currentNoteA) : newEntry;
-          cellA.setNote(updatedNote);
-        }
-        break;
+  // データを走査して色付けを決定
+  for (let i = 1; i < numRows; i++) {
+    const row = values[i];
+    if (row[colIndices.tGray]) {
+      backgroundColors[i].fill(colors.gray);
+    } else if (row[colIndices.hConfirm] && !row[colIndices.sOrange]) {
+      backgroundColors[i][colIndices.hConfirm] = colors.orange;
+      for (let j = colIndices.colorG; j <= colIndices.colorI; j++) {
+        backgroundColors[i][j] = colors.orange;
+      }
+    } else if (row[colIndices.hConfirm] < row[colIndices.sOrange]) {
+      backgroundColors[i][colIndices.hConfirm] = colors.yellow;
+      for (let j = colIndices.colorG; j <= colIndices.colorI; j++) {
+        backgroundColors[i][j] = colors.yellow;
       }
     }
   }
-}
 
-function normalizeDate(dateValue) {
-  if (dateValue === undefined || dateValue === null || dateValue === '') return null;
-
-  var dateString = '';
-  if (dateValue instanceof Date) {
-    dateString = Utilities.formatDate(dateValue, 'Asia/Tokyo', 'yyyy/MM/dd');
-  } else if (typeof dateValue === 'string') {
-    dateString = dateValue.trim();
-  } else {
-    return null;
-  }
-
-  if (dateString === '') return null;
-
-  var parts = dateString.split('/');
-  if (parts.length !== 3) return null;
-
-  if (isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null;
-
-  return parts[0] + '/' + parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0');
+  // 一括で色付けを適用
+  dataRange.setBackgrounds(backgroundColors);
 }
