@@ -1,61 +1,41 @@
-function transferAndUpdateData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheetA = ss.getSheetByName("Aシート");
-  var sheetB = ss.getSheetByName("Bシート");
-  
+function updateSheet() {
+  var ss = SpreadshreadApp.getActiveSpreadsheet();
+  var sheetA = ss.getSheetByName('Aシート');
+  var sheetB = ss.getSheetByName('Bシート');
+
   var dataA = sheetA.getDataRange().getValues();
   var dataB = sheetB.getDataRange().getValues();
-  
+
   var headerA = dataA[0];
+  var idIndexA = headerA.indexOf('ID');
+  var dateIndexA = headerA.indexOf('確認日');
+
   var headerB = dataB[0];
-  
-  var idIndexA = headerA.indexOf("ID");
-  var remarkIndexA = headerA.indexOf("備考");
-  var idIndexB = headerB.indexOf("ID");
-  var remarkIndexB = headerB.indexOf("備考");
-  
-  var updatedRows = 0;
-  var addedRows = 0;
-  
+  var idIndexB = headerB.indexOf('ID');
+  var dateIndexB = headerB.indexOf('確認日');
+
   for (var i = 1; i < dataA.length; i++) {
-    var rowA = dataA[i];
-    var idA = rowA[idIndexA];
-    var remarkA = rowA[remarkIndexA];
-    
-    // 備考欄に値がある場合のみ処理
-    if (remarkA) {
-      var foundIndex = -1;
-      for (var j = 1; j < dataB.length; j++) {
-        if (dataB[j][idIndexB] === idA && dataB[j][remarkIndexB]) {
-          foundIndex = j;
-          break;
+    var idA = dataA[i][idIndexA];
+    var dateA = dataA[i][dateIndexA];
+
+    for (var j = 1; j < dataB.length; j++) {
+      var idB = dataB[j][idIndexB];
+      var dateB = dataB[j][dateIndexB];
+
+      if (idA === idB) {
+        if (dateA === dateB) {
+          // 日付が同じ場合、Bシートの値をそのまま使用
+          sheetA.getRange(i + 1, dateIndexA + 1).setValue(dateB);
+        } else {
+          // 日付が異なる場合、メモを更新
+          var newDate = new Date(dateB);
+          var oneMonthAgo = new Date(newDate.setMonth(newDate.getMonth() - 1));
+          var formattedDate = Utilities.formatDate(oneMonthAgo, 'Asia/Tokyo', 'yyyy/MM/dd');
+          var updatedValue = dateB + '\n' + formattedDate + ' ' + dateB;
+          sheetA.getRange(i + 1, dateIndexA + 1).setValue(updatedValue);
         }
-      }
-      
-      if (foundIndex !== -1) {
-        // 既存の行を更新
-        for (var k = 0; k < headerA.length; k++) {
-          if (k !== remarkIndexB) {
-            sheetB.getRange(foundIndex + 1, k + 1).setValue(rowA[k]);
-          }
-        }
-        var existingRemark = dataB[foundIndex][remarkIndexB];
-        var newRemark = Utilities.formatDate(new Date(), "GMT+9", "yyyy/MM") + "\n" + remarkA;
-        sheetB.getRange(foundIndex + 1, remarkIndexB + 1).setValue(existingRemark + "\n" + newRemark);
-        updatedRows++;
-      } else {
-        // 新しい行を追加
-        var newRow = new Array(headerB.length);
-        for (var k = 0; k < headerA.length; k++) {
-          newRow[k] = rowA[k];
-        }
-        newRow[remarkIndexB] = Utilities.formatDate(new Date(), "GMT+9", "yyyy/MM") + "\n" + remarkA;
-        sheetB.appendRow(newRow);
-        addedRows++;
+        break;
       }
     }
   }
-  
-  Logger.log("更新された行数: " + updatedRows);
-  Logger.log("追加された行数: " + addedRows);
 }
